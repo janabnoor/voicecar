@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Car Animation with Voice Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+
+        /* Main scene container */
+        .scene {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Layer 1: Sky - FIXED BACKGROUND (does not move) */
+        .sky-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('city_skyline.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+        }
+
+        /* Layer 2: City Buildings - Moving in front of sky */
+        .city-layer {
+            position: absolute;
+            bottom: 35vh;
+            left: 0;
+            width: 100%;
+            height: 45vh;
+            background-image: url('city.png');
+            background-repeat: repeat-x;
+            background-position: bottom center;
+            background-size: auto 100%;
+            z-index: 2;
+        }
+
+        /* Layer 3: Road - Moving faster than city */
+        .road-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35vh;
+            background-image: url('road.png');
+            background-repeat: repeat-x;
+            background-position: center;
+            background-size: auto 100%;
+            z-index: 3;
+        }
+
+        /* Layer 4: Car - Moving left to right on road */
+        .car-container {
+            position: absolute;
+            bottom: 32vh;
+            width: 300px;
+            height: 150px;
+            z-index: 4;
+        }
+
+        /* Wheels - Positioned exactly in car's wheel wells */
+        .wheel {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            background-image: url('car_wheel.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            bottom: 10px;
+        }
+
+        .wheel.rear {
+            left: 45px;
+        }
+
+        .wheel.front {
+            right: 35px;
+        }
+
+        /* Car body - Over the wheels */
+        .car-body {
+            position: absolute;
+            width: 300px;
+            height: 156px;
+            background-image: url('car.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center center;
+            top: 0;
+            left: 0;
+        }
+
+        /* Speed Control Buttons */
+        .speed-controls {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .speed-btn {
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 3px solid #333;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .speed-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .speed-btn.active {
+            background: #4CAF50;
+            color: white;
+            border-color: #45a049;
+        }
+
+        /* Voice Control Section */
+        .voice-controls {
+            position: fixed;
+            left: 30px;
+            top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid #333;
+            background: rgba(255, 255, 255, 0.95);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .mic-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .mic-button.listening {
+            background: #FF4444;
+            color: white;
+            border-color: #CC0000;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .mic-button.listening::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 3px solid #FF4444;
+            border-radius: 50%;
+            animation: ripple 1.5s ease-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
+
+        .voice-status {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 3px solid #333;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            min-width: 250px;
+            text-align: center;
+        }
+
+        .voice-status h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .recognized-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 10px 0;
+            min-height: 25px;
+        }
+
+        .command-list {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #ddd;
+        }
+
+        .command-list p {
+            font-size: 12px;
+            color: #888;
+            margin: 3px 0;
+        }
+
+        .error-message {
+            background: #FFF3CD;
+            border: 2px solid #FFC107;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .success-indicator {
+            color: #4CAF50;
+            font-weight: bold;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive scaling */
+        @media (max-width: 768px) {
+            .car-container {
+                transform: scale(0.7);
+                transform-origin: bottom left;
+            }
+
+            .speed-controls {
+                right: 15px;
+                gap: 10px;
+            }
+            
+            .speed-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+                min-width: 110px;
+            }
+
+            .voice-controls {
+                left: 15px;
+                top: 15px;
+            }
+
+            .mic-button {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+
+            .voice-status {
+                min-width: 200px;
+                padding: 12px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .car-container {
+                transform: scale(0.5);
+                transform-origin: bottom left;
+            }
+
+            .voice-controls {
+                left: 10px;
+                top: 10px;
+            }
+
+            .voice-status {
+                min-width: 180px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scene">
+        <!-- Layer 1: Sky (FIXED - Does NOT Move) -->
+        <div class="sky-layer" id="skyLayer"></div>
+
+        <!-- Layer 2: City Buildings (Moves Right to Left) -->
+        <div class="city-layer" id="cityLayer"></div>
+
+        <!-- Layer 3: Road (Moves Right to Left, Faster) -->
+        <div class="road-layer" id="roadLayer"></div>
+
+        <!-- Layer 4: Car with Wheels (Moves Left to Right) -->
+        <div class="car-container" id="carContainer">
+            <!-- Wheels behind car body -->
+            <div class="wheel rear" id="wheelRear"></div>
+            <div class="wheel front" id="wheelFront"></div>
+            <!-- Car body on top -->
+            <div class="car-body" id="carBody"></div>
+        </div>
+
+        <!-- Voice Control Section -->
+        <div class="voice-controls">
+            <button class="mic-button" id="micButton" title="Click to start voice control">
+                🎤
+            </button>
+            <div class="voice-status">
+                <h3>Voice Control</h3>
+                <div class="status-text" id="statusText">Click microphone to start</div>
+                <div class="recognized-text" id="recognizedText"></div>
+                <div class="command-list">
+                    <p><strong>Say:</strong></p>
+                    <p>"Slow" | "Medium" | "Fast" | "Super Fast"</p>
+                </div>
+                <div id="errorMessage"></div>
+            </div>
+        </div>
+
+        <!-- Speed Control Buttons -->
+        <div class="speed-controls">
+            <button class="speed-btn" data-speed="slow">Slow</button>
+            <button class="speed-btn" data-speed="medium">Medium</button>
+            <button class="speed-btn active" data-speed="fast">Fast</button>
+            <button class="speed-btn" data-speed="superfast">Super Fast</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // SPEED PRESETS
+        // ============================================
+        const speedPresets = {
+            slow: {
+                carSpeed: 3.5,
+                citySpeed: 0.5,
+                roadSpeed: 2.6,
+                wheelRotationSpeed: 4.2
+            },
+            medium: {
+                carSpeed: 7,
+                citySpeed: 1.05,
+                roadSpeed: 5.25,
+                wheelRotationSpeed: 8.4
+            },
+            fast: {
+                carSpeed: 10,
+                citySpeed: 1.5,
+                roadSpeed: 7.5,
+                wheelRotationSpeed: 12
+            },
+            superfast: {
+                carSpeed: 12,
+                citySpeed: 1.8,
+                roadSpeed: 9,
+                wheelRotationSpeed: 14.4
+            }
+        };
+
+        // ============================================
+        // ANIMATION CONFIGURATION
+        // ============================================
+        const config = {
+            carSpeed: 10.0,              // Car movement speed: LEFT → RIGHT
+            citySpeed: 1.5,             // City movement speed: RIGHT → LEFT (medium)
+            roadSpeed: 7.5,             // Road movement speed: RIGHT → LEFT (faster)
+            wheelRotationSpeed: 12,     // Wheel rotation (degrees per frame)
+            suspensionFrequency: 0.2,  // Bounce frequency
+            suspensionAmplitude: 0.5   // Bounce height (pixels)
+        };
+
+        // ============================================
+        // ANIMATION STATE
+        // ============================================
+        let state = {
+            carPosition: -350,          // Car starts off-screen LEFT
+            cityOffset: 0,              // City parallax offset
+            roadOffset: 0,              // Road parallax offset
+            wheelRotation: 0,           // Current wheel angle
+            time: 0                     // Time for suspension bounce
+        };
+
+        // ============================================
+        // VOICE RECOGNITION STATE
+        // ============================================
+        let voiceRecognition = null;
+        let isListening = false;
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const carContainer = document.getElementById('carContainer');
+        const carBody = document.getElementById('carBody');
+        const cityLayer = document.getElementById('cityLayer');
+        const roadLayer = document.getElementById('roadLayer');
+        const wheelFront = document.getElementById('wheelFront');
+        const wheelRear = document.getElementById('wheelRear');
+        const micButton = document.getElementById('micButton');
+        const statusText = document.getElementById('statusText');
+        const recognizedText = document.getElementById('recognizedText');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // ============================================
+        // MAIN ANIMATION LOOP
+        // ============================================
+        function animate() {
+            // 1. CAR MOVES LEFT → RIGHT
+            state.carPosition += config.carSpeed;
+            
+            // Loop car back to left when it exits right
+            if (state.carPosition > window.innerWidth + 50) {
+                state.carPosition = -350;
+            }
+
+            // 2. CITY MOVES RIGHT → LEFT (Medium Speed)
+            state.cityOffset -= config.citySpeed;
+
+            // 3. ROAD MOVES RIGHT → LEFT (Faster Speed)
+            state.roadOffset -= config.roadSpeed;
+
+            // 4. WHEEL ROTATION (Matches car forward motion)
+            state.wheelRotation += config.wheelRotationSpeed;
+            if (state.wheelRotation >= 360) {
+                state.wheelRotation -= 360;
+            }
+
+            // 5. SUSPENSION BOUNCE TIME
+            state.time += config.suspensionFrequency;
+
+            // 6. APPLY ALL TRANSFORMS
+            applyTransforms();
+
+            // 7. CONTINUE ANIMATION
+            requestAnimationFrame(animate);
+        }
+
+        // ============================================
+        // APPLY VISUAL TRANSFORMS
+        // ============================================
+        function applyTransforms() {
+            // SKY: FIXED - No movement (stays in background)
+            
+            // CITY: Moving RIGHT → LEFT (background-position for seamless scrolling)
+            cityLayer.style.backgroundPosition = `${state.cityOffset}px bottom`;
+
+            // ROAD: Moving RIGHT → LEFT (faster than city)
+            roadLayer.style.backgroundPosition = `${state.roadOffset}px center`;
+
+            // CAR: Moving LEFT → RIGHT (horizontal position)
+            carContainer.style.left = `${state.carPosition}px`;
+
+            // CAR SUSPENSION BOUNCE (up and down motion)
+            const bounceOffset = Math.sin(state.time) * config.suspensionAmplitude;
+            carBody.style.transform = `translateY(${bounceOffset}px)`;
+
+            // WHEEL ROTATION (both wheels rotate synchronously)
+            const rotationTransform = `rotate(${state.wheelRotation}deg)`;
+            wheelFront.style.transform = rotationTransform;
+            wheelRear.style.transform = rotationTransform;
+        }
+
+        // ============================================
+        // SPEED CONTROL SETUP
+        // ============================================
+        function setupSpeedControls() {
+            const speedButtons = document.querySelectorAll('.speed-btn');
+            
+            speedButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const speed = button.getAttribute('data-speed');
+                    setSpeed(speed);
+                    
+                    // Update active button state
+                    speedButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
+        }
+
+        // ============================================
+        // SET SPEED FUNCTION (Used by both buttons and voice)
+        // ============================================
+        function setSpeed(speedLevel) {
+            const preset = speedPresets[speedLevel];
+            if (preset) {
+                config.carSpeed = preset.carSpeed;
+                config.citySpeed = preset.citySpeed;
+                config.roadSpeed = preset.roadSpeed;
+                config.wheelRotationSpeed = preset.wheelRotationSpeed;
+                
+                // Update button visual state
+                updateActiveButton(speedLevel);
+                
+                return true;
+            }
+            return false;
+        }
+
+        // ============================================
+        // UPDATE ACTIVE BUTTON
+        // ============================================
+        function updateActiveButton(speedLevel) {
+            const speedButtons = document.querySelectorAll('.speed-btn');
+            speedButtons.forEach(btn => {
+                if (btn.getAttribute('data-speed') === speedLevel) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // ============================================
+        // VOICE RECOGNITION SETUP
+        // ============================================
+        function setupVoiceRecognition() {
+            // Check for browser support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                showError('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                micButton.disabled = true;
+                micButton.style.opacity = '0.5';
+                micButton.style.cursor = 'not-allowed';
+                return;
+            }
+
+            // Initialize speech recognition
+            voiceRecognition = new SpeechRecognition();
+            
+            // Configure recognition
+            voiceRecognition.continuous = true;  // Keep listening
+            voiceRecognition.interimResults = true;  // Get partial results
+            voiceRecognition.lang = 'en-US';  // Language
+            voiceRecognition.maxAlternatives = 3;  // Consider multiple interpretations
+
+            // Handle recognition results
+            voiceRecognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                // Process all results
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // Display interim results
+                if (interimTranscript) {
+                    recognizedText.textContent = `Hearing: "${interimTranscript}"`;
+                    recognizedText.style.color = '#FFA500';
+                }
+
+                // Process final results
+                if (finalTranscript) {
+                    processVoiceCommand(finalTranscript);
+                }
+            };
+
+            // Handle errors
+            voiceRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                
+                let errorMsg = '';
+                switch (event.error) {
+                    case 'no-speech':
+                        errorMsg = 'No speech detected. Please try again.';
+                        break;
+                    case 'audio-capture':
+                        errorMsg = 'Microphone not found. Please check your device.';
+                        break;
+                    case 'not-allowed':
+                        errorMsg = 'Microphone access denied. Please allow microphone access.';
+                        break;
+                    case 'network':
+                        errorMsg = 'Network error. Please check your connection.';
+                        break;
+                    default:
+                        errorMsg = `Error: ${event.error}`;
+                }
+                
+                showError(errorMsg);
+                stopListening();
+            };
+
+            // Handle recognition end
+            voiceRecognition.onend = () => {
+                if (isListening) {
+                    // Restart if we're supposed to be listening
+                    try {
+                        voiceRecognition.start();
+                    } catch (e) {
+                        console.error('Failed to restart recognition:', e);
+                        stopListening();
+                    }
+                }
+            };
+
+            // Handle recognition start
+            voiceRecognition.onstart = () => {
+                statusText.textContent = 'Listening...';
+                statusText.style.color = '#4CAF50';
+                clearError();
+            };
+
+            // Setup microphone button
+            micButton.addEventListener('click', toggleListening);
+        }
+
+        // ============================================
+        // TOGGLE VOICE LISTENING
+        // ============================================
+        function toggleListening() {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        // ============================================
+        // START LISTENING
+        // ============================================
+        function startListening() {
+            if (!voiceRecognition) return;
+
+            try {
+                voiceRecognition.start();
+                isListening = true;
+                micButton.classList.add('listening');
+                statusText.textContent = 'Listening...';
+                statusText.style.color = '#4CAF50';
+                recognizedText.textContent = '';
+            } catch (e) {
+                console.error('Error starting recognition:', e);
+                showError('Could not start voice recognition. Please try again.');
+            }
+        }
+
+        // ============================================
+        // STOP LISTENING
+        // ============================================
+        function stopListening() {
+            if (!voiceRecognition) return;
+
+            isListening = false;
+            micButton.classList.remove('listening');
+            statusText.textContent = 'Click microphone to start';
+            statusText.style.color = '#666';
+            recognizedText.textContent = '';
+
+            try {
+                voiceRecognition.stop();
+            } catch (e) {
+                console.error('Error stopping recognition:', e);
+            }
+        }
+
+        // ============================================
+        // PROCESS VOICE COMMAND
+        // ============================================
+        function processVoiceCommand(transcript) {
+            const command = transcript.toLowerCase().trim();
+            
+            console.log('Processing command:', command);
+            
+            // Map voice commands to speed levels
+            const commandMap = {
+                'slow': 'slow',
+                'medium': 'medium',
+                'super fast': 'superfast',
+                'superfast': 'superfast',
+                'very fast': 'superfast',
+                'fastest': 'superfast',
+                'super': 'superfast',
+                'fast': 'fast'
+            };
+
+            // Check for exact matches first
+            let matchedSpeed = null;
+            for (const [key, value] of Object.entries(commandMap)) {
+                if (command.includes(key)) {
+                    matchedSpeed = value;
+                    break;
+                }
+            }
+
+            if (matchedSpeed) {
+                // Execute the speed change using the same logic as buttons
+                setSpeed(matchedSpeed);
+                
+                // Display success feedback
+                const speedNames = {
+                    'slow': 'Slow',
+                    'medium': 'Medium',
+                    'fast': 'Fast',
+                    'superfast': 'Super Fast'
+                };
+                
+                recognizedText.textContent = `✓ ${speedNames[matchedSpeed]}`;
+                recognizedText.style.color = '#4CAF50';
+                recognizedText.classList.add('success-indicator');
+                
+                // Clear success message after 2 seconds
+                setTimeout(() => {
+                    if (recognizedText.textContent.startsWith('✓')) {
+                        recognizedText.textContent = '';
+                    }
+                }, 2000);
+                
+                clearError();
+            } else {
+                // Command not recognized
+                recognizedText.textContent = `"${transcript}"`;
+                recognizedText.style.color = '#FF6B6B';
+                showError('Command not recognized. Say: "Slow", "Medium", "Fast", or "Super Fast"');
+                
+                setTimeout(() => {
+                    if (!recognizedText.textContent.startsWith('✓')) {
+                        recognizedText.textContent = '';
+                    }
+                }, 3000);
+            }
+        }
+
+        // ============================================
+        // SHOW ERROR MESSAGE
+        // ============================================
+        function showError(message) {
+            errorMessage.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        // ============================================
+        // CLEAR ERROR MESSAGE
+        // ============================================
+        function clearError() {
+            errorMessage.innerHTML = '';
+        }
+
+        // ============================================
+        // START ANIMATION
+        // ============================================
+        window.addEventListener('load', () => {
+            animate();
+            setupSpeedControls();
+            setupVoiceRecognition();
+        });
+
+        // ============================================
+        // HANDLE WINDOW RESIZE
+        // ============================================
+        window.addEventListener('resize', () => {
+            // Reset car if it's off-screen after resize
+            if (state.carPosition > window.innerWidth + 50) {
+                state.carPosition = -350;
+            }
+        });
+
+        // ============================================
+        // CLEANUP ON PAGE UNLOAD
+        // ============================================
+        window.addEventListener('beforeunload', () => {
+            if (isListening) {
+                stopListening();
+            }
+        });
+    </script>
+</body>
+</html>
